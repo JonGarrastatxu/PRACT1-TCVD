@@ -4,7 +4,7 @@
 Repositorio para la práctica de creación de un dataset mediante web scraping sobre **Steamdb**: https://steamdb.info
 
 ## Integrantes del grupo
-Jon Garrastatxu Fernandez
+Jon Garrastatxu Fernandez<br>
 Víctor Ruiz-Clavijo Jimeno
 
 ## Contenido del repositorio
