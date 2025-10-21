@@ -3,6 +3,10 @@
 
 Repositorio para la práctica de creación de un dataset mediante web scraping sobre **IMDb (es)**: https://www.imdb.com/es-es/
 
+## Integrantes del grupo
+Jon Garrastatxu Fernandez
+Víctor Ruiz-Clavijo Jimeno
+
 ## Contenido del repositorio
 - `/source` — Código del scraper.  
 - `/dataset` — CSV resultante (`imdb_dataset.csv`).  
@@ -39,3 +43,6 @@ pip install -r source/requirements.txt
 
 # ejecutar (ejemplo: extraer 100 páginas empezando desde la homepage ES)
 python source/scraper.py --out dataset/imdb_dataset.csv --max 100 --seed https://www.imdb.com/es-es/
+```
+
+## DOI de Zenodo del dataset generado
