@@ -17,7 +17,7 @@ IMDb (es) — Metadata de películas (seed: es-es homepage)
 ## Resumen rápido
 Este proyecto extrae de páginas públicas de IMDb para construir un dataset por película con variables numéricas y categóricas (rating, votos, duración, géneros, directores, reparto principal, sinopsis, países/idiomas cuando están disponibles). El crawler realiza **descubrimiento de enlaces** (p. ej. de listas y páginas seed) y visita páginas `/title/tt...` para extraer los metadatos.
 
-> **IMPORTANTE (legal/ético):** Antes de ejecutar el scraper revisa `source/robots_check.py`, lee y respeta `robots.txt` de IMDb y su TOS. Si la TOS de IMDb impide la republicación, genera un dataset simulado para Zenodo y documenta la razón en la memoria.
+> **IMPORTANTE (legal/ético):** Antes de ejecutar el scraper revisa `source/robots_check.py`, lee y respeta `robots.txt` de IMDb y su TOS.
 
 ## Requisitos (ver `source/requirements.txt`)
 - Python 3.10+ recomendado
