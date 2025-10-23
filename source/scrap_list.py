@@ -5,8 +5,12 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from datetime import datetime
+from bs4 import BeautifulSoup
+import random 
 import pandas as pd
 import time
+
 
 import undetected_chromedriver as uc
 
@@ -112,13 +116,75 @@ class SteamChartsScraper:
         hrefs = list(dict.fromkeys(hrefs))
         return hrefs
 
-    # TODO: scrap game data
+    #  TODO(Jon): scrap game data
     def scrap_game_data(self, href):
-        self.driver.get(href)
+        """
+    Abre la página del juego (href) y extrae los campos:
+    'title', 'app_id', 'app_type', 'developer', 'publisher', 'platforms',
+    'technologies', 'last_changenumber', 'last_record_update', 'release_date', 'sys_date'
+    Devuelve un dict con esos campos o None si falla.
+    """
+       
+        print(f"Scraping game page: {href}")        
+        try:
+            self.driver.get(href)
+        except Exception as e:
+            print("Error while openning URL:",e)
+            return None
+        # Wait till the title loads (h1)
+        try:
+            self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
+        except Exception:
+            print("timeout while waiting for title in", href)
+        # Wait to ensure that the JS finishes
+        time.sleep(0.6)
+
+
+        # Get HTML and parse with BeautifulSoup 
+        page_html = self.driver.page_source
+        soup = BeautifulSoup(page_html, "html.parser")
+
+        # Title
+        title_tag = soup.find("h1")
+        title = title_tag.get_text(strip=True) if title_tag else None
+
+        # Info Table
+
+        info_table = soup.select_one("tbody")
+        info = {}
+        if info_table:
+            rows = info_table.find_all("tr")
+            for row in rows:
+                tds = row.find_all("td")
+                if len(tds) >= 2:
+                    key = tds[0].get_text(strip=True)
+                    # For links in td, mantain text
+                    value = tds[1].get_text(" ", strip=True)
+                    info[key] = value
+
+        # Final dict
+        data = {
+            "title": title,
+            "app_id": info.get("App ID"),
+            "app_type": info.get("App Type"),
+            "developer": info.get("Developer"),
+            "publisher": info.get("Publisher"),
+            "platforms": info.get("Supported Systems"),
+            "technologies": info.get("Technologies"),
+            "last_changenumber": info.get("Last Changenumber"),
+            "last_record_update": info.get("Last Record Update"),
+            "release_date": info.get("Release Date"),
+            "sys_date": datetime.utcnow().isoformat(),
+            "href": href
+
+        }
+        
+        # Avoid server overload
+        time.sleep(random.uniform(0.8, 1.6))      
 
         # Logic to extract game data and rename columns
         # Must return a dict
-        return
+        return data
     
     # TODO: scrap all games
     def scrap_all_games(scraper, csv_file="steam_hrefs.csv"):
@@ -137,6 +203,8 @@ class SteamChartsScraper:
             data = scraper.scrap_game_data(href)
             if data:
                 df_results = pd.concat([df_results, pd.DataFrame([data])], ignore_index=True)
+
+            break
 
         return df_results
 
