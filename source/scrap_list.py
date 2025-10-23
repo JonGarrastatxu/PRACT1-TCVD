@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 import random 
 import pandas as pd
 import time
+import re
 
 
 import undetected_chromedriver as uc
@@ -23,10 +24,10 @@ class SteamChartsScraper:
         # options.add_argument("start-maximized")
         # options.add_experimental_option("excludeSwitches", ["enable-automation"])
         # options.add_experimental_option('useAutomationExtension', False)
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--start-maximized")
+        options.add_argument("--no-sandbox") # Don't remove unnecessary privileges
+        options.add_argument("--disable-gpu") # To use without GPU
+        options.add_argument("--disable-dev-shm-usage") # To use without shared memory
+        options.add_argument("--start-maximized") 
         options.add_argument("--window-size=1280,1024")
         options.add_argument("--lang=en-US,en")
         self.driver = uc.Chrome(options=options)
@@ -52,6 +53,12 @@ class SteamChartsScraper:
 
 
     def scrap_all_pages_hrefs(self):
+        """
+        Scrap all game hrefs from all dynamic pages.
+
+        Returns:
+        list: A list of hrefs of games in all dynamic pages.
+        """
 
         url = "https://steamdb.info/charts/"
 
@@ -100,8 +107,16 @@ class SteamChartsScraper:
         return all_data
 
     def scrap_current_page_hrefs(self):
-        # Find all table rows from current page
+        
+        """
+        Scrap all game hrefs from the current page.
+
+        Returns:
+        list: A list of hrefs of games in the current page.
+        """
+
         table = self.driver.find_element(By.ID, "table-apps")
+        # Find all table rows from current page
         rows = table.find_elements(By.CSS_SELECTOR, "tbody tr.app")
         hrefs = []
         for row in rows:
@@ -116,31 +131,50 @@ class SteamChartsScraper:
         hrefs = list(dict.fromkeys(hrefs))
         return hrefs
 
-    #  TODO(Jon): scrap game data
+    #  TODO: Add more fields
     def scrap_game_data(self, href):
         """
-    Abre la página del juego (href) y extrae los campos:
-    'title', 'app_id', 'app_type', 'developer', 'publisher', 'platforms',
-    'technologies', 'last_changenumber', 'last_record_update', 'release_date', 'sys_date'
-    Devuelve un dict con esos campos o None si falla.
-    """
-       
+        Scrap game data from a given href.
+        
+        Parameters:
+        href (str): href of the game page to scrape.
+        
+        Returns:
+        dict: A dictionary containing the scraped data with the following keys:
+            - title (str): The title of the game.
+            - app_id (int): The app ID of the game.
+            - app_type (str): The app type of the game.
+            - developer (str): The developer of the game.
+            - publisher (str): The publisher of the game.
+            - platforms (str): The supported systems of the game.
+            - technologies (str): The technologies used in the game.
+            - last_changenumber (str): The last changenumber of the game.
+            - last_record_update (str): The last record update of the game.
+            - release_date (str): The release date of the game.
+            - positive_reviews_per (float): The percentage of positive reviews of the game.
+            - total_reviews (int): The total number of reviews of the game.
+            - player_count_now (int): The number of players currently playing the game.
+            - sys_date (datetime): The date when the data was scraped.
+            - href (str): The href of the game page that was scraped.
+        """
+
         print(f"Scraping game page: {href}")        
         try:
             self.driver.get(href)
         except Exception as e:
             print("Error while openning URL:",e)
             return None
+        
         # Wait till the title loads (h1)
         try:
             self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
         except Exception:
             print("timeout while waiting for title in", href)
+
         # Wait to ensure that the JS finishes
         time.sleep(0.6)
 
-
-        # Get HTML and parse with BeautifulSoup 
+        # Get HTML and parse with BeautifulSoup (Better to not interact in real time with the page)
         page_html = self.driver.page_source
         soup = BeautifulSoup(page_html, "html.parser")
 
@@ -148,9 +182,8 @@ class SteamChartsScraper:
         title_tag = soup.find("h1")
         title = title_tag.get_text(strip=True) if title_tag else None
 
-        # Info Table
-
-        info_table = soup.select_one("tbody")
+        # Main Info Table
+        info_table = soup.select_one("table.table.table-bordered.table-responsive-flex tbody")
         info = {}
         if info_table:
             rows = info_table.find_all("tr")
@@ -162,7 +195,37 @@ class SteamChartsScraper:
                     value = tds[1].get_text(" ", strip=True)
                     info[key] = value
 
-        # Final dict
+        # Extract positive reviews percentage and player count right now
+        header_block = soup.select_one("div.header-two-things")
+        if header_block:
+            reviews_link = header_block.select_one("a#js-reviews-button")
+            if reviews_link:
+                aria_label = reviews_link.get("aria-label", "")
+                
+                # Search positive reviews percentage (ej. 86.39%)
+                match_perc = re.search(r"(\d{1,3}\.\d{2})%", aria_label)
+                if match_perc:
+                    info["positive_reviews_per"] = float(match_perc.group(1))
+                else:
+                    info["positive_reviews_per"] = None
+                
+                # Search total review count (ej. of the 9,104,053)
+                match_total = re.search(r"of the ([\d,]+)", aria_label)
+                if match_total:
+                    total_reviews_str = match_total.group(1).replace(",", "")
+                    info["total_reviews"] = int(total_reviews_str)
+                else:
+                    info["total_reviews"] = None
+
+            # Search player count
+            charts_link = header_block.select_one("a#js-charts-button .header-thing-number")
+            if charts_link:
+                player_count_str = charts_link.get_text(strip=True).replace(",", "")
+                info["player_count_now"] = int(player_count_str)
+            else:
+                info["player_count_now"] = None
+
+        # Main dict
         data = {
             "title": title,
             "app_id": info.get("App ID"),
@@ -174,9 +237,11 @@ class SteamChartsScraper:
             "last_changenumber": info.get("Last Changenumber"),
             "last_record_update": info.get("Last Record Update"),
             "release_date": info.get("Release Date"),
+            "positive_reviews_per": info.get("positive_reviews_per"),
+            "total_reviews": info.get("total_reviews"),
+            "player_count_now": info.get("player_count_now"),
             "sys_date": datetime.utcnow().isoformat(),
             "href": href
-
         }
         
         # Avoid server overload
@@ -186,17 +251,48 @@ class SteamChartsScraper:
         # Must return a dict
         return data
     
-    # TODO: scrap all games
+    # TODO: scrap all games and more columns
     def scrap_all_games(scraper, csv_file="steam_hrefs.csv"):
+        """
+        Scrap all games from the given CSV file and return a DataFrame with the desired columns.
+
+        Parameters:
+        scraper (SteamChartsScraper): The scraper object to use for scraping.
+        csv_file (str): The path to the CSV file containing the game hrefs to scrape.
+
+        Returns:
+        pd.DataFrame: A DataFrame containing the scraped game data with the desired columns.
+        """
+
         df_hrefs = pd.read_csv(csv_file)
 
         # Example columns, WE'GOING TO ADD MORE
         # The rest of columns would come from the chart page subcategories so this list is basic and for example
         # sys_date will be our scrap date using datetime.now()
-        columnas = ['title', 'app_id', 'app_type', 'developer', 'publisher', 'platforms', 'technologies', 'last_changenumber', 
-                    'last_record_update', 'release_date', 'sys_date'] 
-        
-        df_results = pd.DataFrame(columns=columnas)
+        columnas = [
+        'title', 'app_id', 'app_type', 'developer', 'publisher', 'platforms',
+        'technologies', 'last_changenumber', 'last_record_update', 'release_date', 
+        'positive_reviews_per', 'total_reviews', 'player_count_now', 'sys_date'
+        ]
+
+        dtypes = {
+            'title': 'string',
+            'app_id': 'Int64',
+            'app_type': 'string',
+            'developer': 'string',
+            'publisher': 'string',
+            'platforms': 'string',
+            'technologies': 'string',
+            'last_changenumber': 'string',
+            'last_record_update': 'string',
+            'release_date': 'string',
+            'positive_reviews_per': 'float64',
+            'total_reviews': 'Int64',
+            'player_count_now': 'Int64',
+            'sys_date': 'datetime64[ns]'
+        }
+
+        df_results = pd.DataFrame(columns=columnas).astype(dtypes)
 
         for i, href in enumerate(df_hrefs['0']):
             print(f"[{i+1}/{len(df_hrefs)}] Scraping {href}...")
@@ -204,7 +300,7 @@ class SteamChartsScraper:
             if data:
                 df_results = pd.concat([df_results, pd.DataFrame([data])], ignore_index=True)
 
-            break
+            break # DO NOT REMOVE OR COMMENT!!! JUST TO LOAD ONLY ONE PAGE FOR TESTING
 
         return df_results
 
