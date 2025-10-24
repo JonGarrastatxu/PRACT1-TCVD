@@ -52,7 +52,7 @@ class SteamChartsScraper:
         self.wait = WebDriverWait(self.driver, 10) """
 
 
-    def scrap_all_pages_hrefs(self):
+    def scrap_all_pages_hrefs(self, update):
         """
         Scrap all game hrefs from all dynamic pages.
 
@@ -65,7 +65,11 @@ class SteamChartsScraper:
         print("Visiting:", url)
         self.driver.get(url)
 
-        all_data = []
+        if update:
+            all_data = pd.read_csv("steam_hrefs.csv")
+            all_data = all_data["0"].tolist()
+        else:
+            all_data = []
 
         """ # Does table-apps exists???
         exists = self.driver.execute_script("return document.querySelector('#table-apps') !== null;")
@@ -91,8 +95,7 @@ class SteamChartsScraper:
             print("Wrapper and rows loaded.")
 
             # Extract hrefs
-            page_data = self.scrap_current_page_hrefs()
-            all_data.extend(page_data)
+            all_data = self.scrap_current_page_hrefs(all_data)
 
             # DO NOT REMOVE OR COMMENT!!! JUST TO LOAD ONLY ONE PAGE FOR TESTING
             break
@@ -106,7 +109,7 @@ class SteamChartsScraper:
                 break
         return all_data
 
-    def scrap_current_page_hrefs(self):
+    def scrap_current_page_hrefs(self, all_data):
         
         """
         Scrap all game hrefs from the current page.
@@ -118,18 +121,15 @@ class SteamChartsScraper:
         table = self.driver.find_element(By.ID, "table-apps")
         # Find all table rows from current page
         rows = table.find_elements(By.CSS_SELECTOR, "tbody tr.app")
-        hrefs = []
         for row in rows:
             try:
                 # Extract game href to main chart page
                 href = row.find_element(By.CSS_SELECTOR, "td a.b").get_attribute("href")
-                hrefs.append(href)
+                if href not in all_data:
+                    all_data.append(href)
             except:
                 continue
-
-        # Remove duplicates
-        hrefs = list(dict.fromkeys(hrefs))
-        return hrefs
+        return all_data
 
     #  TODO: Add more fields
     def scrap_game_data(self, href):
@@ -182,7 +182,9 @@ class SteamChartsScraper:
         title_tag = soup.find("h1")
         title = title_tag.get_text(strip=True) if title_tag else None
 
+        ############################################################################
         # Main Info Table
+        ############################################################################
         info_table = soup.select_one("table.table.table-bordered.table-responsive-flex tbody")
         info = {}
         if info_table:
@@ -195,7 +197,9 @@ class SteamChartsScraper:
                     value = tds[1].get_text(" ", strip=True)
                     info[key] = value
 
-        # Extract positive reviews percentage and player count right now
+        ############################################################################
+        # Positive reviews percentage and player count right now
+        ############################################################################
         header_block = soup.select_one("div.header-two-things")
         if header_block:
             reviews_link = header_block.select_one("a#js-reviews-button")
@@ -252,7 +256,7 @@ class SteamChartsScraper:
         return data
     
     # TODO: scrap all games and more columns
-    def scrap_all_games(scraper, csv_file="steam_hrefs.csv"):
+    def scrap_all_games(scraper, update, csv_file="steam_hrefs.csv"):
         """
         Scrap all games from the given CSV file and return a DataFrame with the desired columns.
 
@@ -292,7 +296,14 @@ class SteamChartsScraper:
             'sys_date': 'datetime64[ns]'
         }
 
-        df_results = pd.DataFrame(columns=columnas).astype(dtypes)
+        if update:
+            df_results = pd.read_csv(
+                "dataset/steam_dataset.csv",
+                dtype={k: v for k, v in dtypes.items() if v != "datetime64[ns]"},
+                parse_dates=[k for k, v in dtypes.items() if v == "datetime64[ns]"]
+        )
+        else:
+            df_results = pd.DataFrame(columns=columnas).astype(dtypes)
 
         for i, href in enumerate(df_hrefs['0']):
             print(f"[{i+1}/{len(df_hrefs)}] Scraping {href}...")
