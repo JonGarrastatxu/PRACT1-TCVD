@@ -109,6 +109,7 @@ class SteamChartsScraper:
                 break
         return all_data
 
+
     def scrap_current_page_hrefs(self, all_data):
         
         """
@@ -131,7 +132,7 @@ class SteamChartsScraper:
                 continue
         return all_data
 
-    #  TODO: Add more fields
+
     def scrap_game_data(self, href):
         """
         Scrap game data from a given href.
@@ -229,8 +230,44 @@ class SteamChartsScraper:
             else:
                 info["player_count_now"] = None
 
+        ############################################################################
+        # Categories
+        ############################################################################
+        categories_block = soup.select_one("div.header-thing.header-thing-categories")
+        categories = {}
+
+        # Categories to use
+        categories_to_use = [
+            "Multi-player",
+            "Steam Trading Cards",
+            "Valve Anti-Cheat",
+            "In-App Purchases",
+            "Steam Workshop",
+            "Cloud Gaming",
+            "Cross-Platform Multiplayer",
+            "Stats",
+            "Remote Play on Phone",
+            "Remote Play on Tablet"
+        ]
+
+        if categories_block:
+            # Search all <a> with attribute aria-label (los nombres de categoría)
+            category_links = categories_block.find_all("a", attrs={"aria-label": True})
+            
+            for link in category_links:
+                label = link["aria-label"].strip()
+                if label in categories_to_use:
+                    categories[label] = 1
+
+        # If category not found, set it to 0
+        for cat in categories_to_use:
+            if cat not in categories:
+                categories[cat] = 0
+
+        ############################################################################
         # Main dict
         data = {
+            # General
             "title": title,
             "app_id": info.get("App ID"),
             "app_type": info.get("App Type"),
@@ -242,8 +279,21 @@ class SteamChartsScraper:
             "last_record_update": info.get("Last Record Update"),
             "release_date": info.get("Release Date"),
             "positive_reviews_per": info.get("positive_reviews_per"),
+            # Reviews
             "total_reviews": info.get("total_reviews"),
             "player_count_now": info.get("player_count_now"),
+            # Categories
+            "multiplayer": categories.get("Multi-player"),
+            "steam_trading_cards": categories.get("Steam Trading Cards"),
+            "valve_anti_cheat": categories.get("Valve Anti-Cheat"),
+            "in_app_purchases": categories.get("In-App Purchases"),
+            "steam_workshop": categories.get("Steam Workshop"),
+            "cloud_gaming": categories.get("Cloud Gaming"),
+            "cross_platform_multiplayer": categories.get("Cross-Platform Multiplayer"),
+            "stats": categories.get("Stats"),
+            "remote_play_on_phone": categories.get("Remote Play on Phone"),
+            "remote_play_on_tablet": categories.get("Remote Play on Tablet"),
+            # Scrap info
             "sys_date": datetime.utcnow().isoformat(),
             "href": href
         }
@@ -255,7 +305,7 @@ class SteamChartsScraper:
         # Must return a dict
         return data
     
-    # TODO: scrap all games and more columns
+    # TODO: scrap all games
     def scrap_all_games(scraper, update, csv_file="steam_hrefs.csv"):
         """
         Scrap all games from the given CSV file and return a DataFrame with the desired columns.
@@ -270,16 +320,18 @@ class SteamChartsScraper:
 
         df_hrefs = pd.read_csv(csv_file)
 
-        # Example columns, WE'GOING TO ADD MORE
-        # The rest of columns would come from the chart page subcategories so this list is basic and for example
         # sys_date will be our scrap date using datetime.now()
         columnas = [
         'title', 'app_id', 'app_type', 'developer', 'publisher', 'platforms',
         'technologies', 'last_changenumber', 'last_record_update', 'release_date', 
-        'positive_reviews_per', 'total_reviews', 'player_count_now', 'sys_date'
+        'positive_reviews_per', 'total_reviews', 'player_count_now', 'multiplayer',
+        'steam_trading_cards', 'valve_anti_cheat', 'in_app_purchases', 'steam_workshop', 
+        'cloud_gaming', 'cross_platform_multiplayer', 'stats', 'remote_play_on_phone', 
+        'remote_play_on_tablet', 'sys_date', 'href'
         ]
 
         dtypes = {
+            # General
             'title': 'string',
             'app_id': 'Int64',
             'app_type': 'string',
@@ -292,6 +344,18 @@ class SteamChartsScraper:
             'release_date': 'string',
             'positive_reviews_per': 'float64',
             'total_reviews': 'Int64',
+            # Categories
+            'multiplayer': 'Int64',
+            'steam_trading_cards': 'Int64',
+            'valve_anti_cheat': 'Int64',
+            'in_app_purchases': 'Int64',
+            'steam_workshop': 'Int64',
+            'cloud_gaming': 'Int64',
+            'cross_platform_multiplayer': 'Int64',
+            'stats': 'Int64',
+            'remote_play_on_phone': 'Int64',
+            'remote_play_on_tablet': 'Int64',
+            # Scrap info
             'player_count_now': 'Int64',
             'sys_date': 'datetime64[ns]'
         }
