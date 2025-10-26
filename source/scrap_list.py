@@ -31,8 +31,6 @@ class SteamChartsScraper:
         self.wait = WebDriverWait(self.driver, 10)
         user_agent =  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
         options.add_argument(f"user-agent={user_agent}")
-        self.driver.get("https://httpbin.org/user-agent")
-        print(self.driver.page_source)
 
 
     def scrap_all_pages_hrefs(self, update):
