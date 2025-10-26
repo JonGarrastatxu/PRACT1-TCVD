@@ -1,7 +1,6 @@
 from scrap_list import SteamChartsScraper
 import argparse
 
-
 def main(args):
     # Initialize scraper
     scraper = SteamChartsScraper()
@@ -10,13 +9,11 @@ def main(args):
     if not args.skip:
         data = scraper.scrap_all_pages_hrefs(args.update)
         scraper.save_to_csv(data, "steam_hrefs.csv")
+    print("Hrefs saved to steam_hrefs.csv")
 
-    # TODO: Scrape games from steam_hrefs.csv
-    # Limited to one for testing
-    data_pd = scraper.scrap_all_games(args.update)
-
-    # Save dataset
-    data_pd.to_csv("dataset/steam_dataset.csv", index=False)
+    # Scrape games from steam_hrefs.csv
+    scraper.scrap_all_games(args.update)
+    print("Games saved to dataset/steam_dataset.csv")
     
     # Close scraper
     scraper.close()

@@ -9,19 +9,14 @@ Víctor Ruiz-Clavijo Jimeno
 
 ## Contenido del repositorio
 - `/source` — Código del scraper.  
-- `/dataset` — CSV resultante (`imdb_dataset.csv`).  
-- `/docs` — Memoria en PDF (`memoria.pdf`) con todos los apartados requeridos.  
-- `/figures` — Diagramas y esquemas.  
-- `/video` — Enlace al vídeo explicativo (Drive).  
-- `LICENSE`, `README.md`, `CITATION.cff`, `.gitignore`.
+- `/dataset` — CSV resultante (`imdb_dataset.csv`).   
+- `LICENSE`, `README.md`, `.gitignore`.
 
 ## Título del dataset
 Steam Game Metadata with Review Scores Extracted from SteamDB
 
 ## Resumen rápido
 Este proyecto extrae datos de juegos de Steam de la página no oficial steamdb.info para construir un dataset variables numéricas y categóricas ('title', app_id, app_type, developer, publisher, platforms, technologies,etc). El scraper realiza **descubrimiento de enlaces** y visita páginas `https://steamdb.info/app/href/charts` para extraer los metadatos usando selenium y evitando cloudfare simulando acciones del usuario ejecutor del código.
-
-> **IMPORTANTE (legal/ético):** Antes de ejecutar el scraper revisa `source/robots_check.py`, lee y respeta `robots.txt` de IMDb y su TOS.
 
 ## Requisitos (ver `source/requirements.txt`)
 - Python 3.12+
@@ -40,8 +35,11 @@ venv\Scripts\activate     # Windows
 
 pip install -r source/requirements.txt
 
-# ejecutar (ejemplo: extraer 100 páginas empezando desde la homepage ES)
+# ejecutar (Overwrite!!!)
 python source/main.py
+# parameters
+--skip # Skip hrefs scraping (Use steam_hrefs.csv)
+--update # Update existing href list and dataset
 ```
 
 ## DOI de Zenodo del dataset generado

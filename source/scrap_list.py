@@ -18,38 +18,21 @@ import undetected_chromedriver as uc
 class SteamChartsScraper:
     def __init__(self):
         print("Initializing scraper...")
-
         options = webdriver.ChromeOptions() 
         options.headless = False
-        # options.add_argument("start-maximized")
-        # options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        # options.add_experimental_option('useAutomationExtension', False)
         options.add_argument("--no-sandbox") # Don't remove unnecessary privileges
         options.add_argument("--disable-gpu") # To use without GPU
         options.add_argument("--disable-dev-shm-usage") # To use without shared memory
-        options.add_argument("--start-maximized") 
-        options.add_argument("--window-size=1280,1024")
+        options.add_argument("--start-maximized")
+        options.add_argument(f"--window-size=1920,1080")
         options.add_argument("--lang=en-US,en")
+        options.add_argument("--disable-blink-features=AutomationControlled") # To avoid bot detection
         self.driver = uc.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 10)
-
-        """ options = webdriver.ChromeOptions()
-        options.add_argument("start-maximized")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
-        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
-
-        print("Initializing stealth...")
-        stealth(self.driver,
-                languages=["en-US", "en"],
-                vendor="Google Inc.",
-                platform="Win32",
-                webgl_vendor="Intel Inc.",
-                renderer="Intel Iris OpenGL Engine",
-                fix_hairline=True,
-                )
-
-        self.wait = WebDriverWait(self.driver, 10) """
+        user_agent =  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+        options.add_argument(f"user-agent={user_agent}")
+        self.driver.get("https://httpbin.org/user-agent")
+        print(self.driver.page_source)
 
 
     def scrap_all_pages_hrefs(self, update):
@@ -64,6 +47,7 @@ class SteamChartsScraper:
 
         print("Visiting:", url)
         self.driver.get(url)
+        time.sleep(random.uniform(3.0, 5.0))
 
         if update:
             all_data = pd.read_csv("steam_hrefs.csv")
@@ -93,18 +77,18 @@ class SteamChartsScraper:
                 )
             )
             print("Wrapper and rows loaded.")
+            time.sleep(random.uniform(1.0, 3.0))
 
             # Extract hrefs
             all_data = self.scrap_current_page_hrefs(all_data)
-
-            # DO NOT REMOVE OR COMMENT!!! JUST TO LOAD ONLY ONE PAGE FOR TESTING
-            break
+            time.sleep(random.uniform(0.8, 2.5))
 
             try:
                 next_button = wrapper.find_element(By.CSS_SELECTOR, "button.dt-paging-button.next") # Look for next button
                 if "disabled" in next_button.get_attribute("class"): # If disabled we're on last page so break
                     break
                 next_button.click()
+                time.sleep(random.uniform(1.2, 5.0))
             except:
                 break
         return all_data
@@ -127,6 +111,7 @@ class SteamChartsScraper:
                 # Extract game href to main chart page
                 href = row.find_element(By.CSS_SELECTOR, "td a.b").get_attribute("href")
                 if href not in all_data:
+                    print("New href:", href)
                     all_data.append(href)
             except:
                 continue
@@ -135,28 +120,10 @@ class SteamChartsScraper:
 
     def scrap_game_data(self, href):
         """
-        Scrap game data from a given href.
-        
-        Parameters:
-        href (str): href of the game page to scrape.
-        
+        Scrape game data from the given href.
+
         Returns:
-        dict: A dictionary containing the scraped data with the following keys:
-            - title (str): The title of the game.
-            - app_id (int): The app ID of the game.
-            - app_type (str): The app type of the game.
-            - developer (str): The developer of the game.
-            - publisher (str): The publisher of the game.
-            - platforms (str): The supported systems of the game.
-            - technologies (str): The technologies used in the game.
-            - last_changenumber (str): The last changenumber of the game.
-            - last_record_update (str): The last record update of the game.
-            - release_date (str): The release date of the game.
-            - positive_reviews_per (float): The percentage of positive reviews of the game.
-            - total_reviews (int): The total number of reviews of the game.
-            - player_count_now (int): The number of players currently playing the game.
-            - sys_date (datetime): The date when the data was scraped.
-            - href (str): The href of the game page that was scraped.
+        dict: A dict containing the scraped game data with the desired columns.
         """
 
         print(f"Scraping game page: {href}")        
@@ -173,15 +140,22 @@ class SteamChartsScraper:
             print("timeout while waiting for title in", href)
 
         # Wait to ensure that the JS finishes
-        time.sleep(0.6)
+        time.sleep(random.uniform(2, 3.5))
+
+        
 
         # Get HTML and parse with BeautifulSoup (Better to not interact in real time with the page)
         page_html = self.driver.page_source
         soup = BeautifulSoup(page_html, "html.parser")
 
+        ############################################################################
         # Title
+        ############################################################################
         title_tag = soup.find("h1")
         title = title_tag.get_text(strip=True) if title_tag else None
+        if title is None or title == "Checking if the site connection is secure…":
+            print(f"Error while getting title in {href}")
+            return None
 
         ############################################################################
         # Main Info Table
@@ -225,8 +199,13 @@ class SteamChartsScraper:
             # Search player count
             charts_link = header_block.select_one("a#js-charts-button .header-thing-number")
             if charts_link:
-                player_count_str = charts_link.get_text(strip=True).replace(",", "")
-                info["player_count_now"] = int(player_count_str)
+                player_count_str = charts_link.get_text(strip=True)
+                # Remove non-numeric characters
+                player_count_str = re.sub(r"[^\d,]", "", player_count_str)
+                if player_count_str:  # Check if the string is not empty
+                    info["player_count_now"] = int(player_count_str.replace(",", ""))
+                else:
+                    info["player_count_now"] = None
             else:
                 info["player_count_now"] = None
 
@@ -299,23 +278,24 @@ class SteamChartsScraper:
         }
         
         # Avoid server overload
-        time.sleep(random.uniform(0.8, 1.6))      
+        time.sleep(random.uniform(30, 130))      
 
         # Logic to extract game data and rename columns
         # Must return a dict
         return data
     
-    # TODO: scrap all games
+
     def scrap_all_games(scraper, update, csv_file="steam_hrefs.csv"):
         """
-        Scrap all games from the given CSV file and return a DataFrame with the desired columns.
+        Scrap all game data from csv_file and save it to a CSV file.
 
         Parameters:
-        scraper (SteamChartsScraper): The scraper object to use for scraping.
-        csv_file (str): The path to the CSV file containing the game hrefs to scrape.
+        scraper (SteamChartsScraper): The scraper object to use.
+        update (bool): If true, update existing dataset with new data.
+        csv_file (str): The CSV file containing all game hrefs.
 
         Returns:
-        pd.DataFrame: A DataFrame containing the scraped game data with the desired columns.
+        None
         """
 
         df_hrefs = pd.read_csv(csv_file)
@@ -369,19 +349,35 @@ class SteamChartsScraper:
         else:
             df_results = pd.DataFrame(columns=columnas).astype(dtypes)
 
+
         for i, href in enumerate(df_hrefs['0']):
+            if href in df_results['href'].values:
+                continue
             print(f"[{i+1}/{len(df_hrefs)}] Scraping {href}...")
-            data = scraper.scrap_game_data(href)
+            if i % 10 == 0:
+                # Avoid firewall suspected syntetic requests
+                time.sleep(random.uniform(10, 25))
+
+            max_attempts = 8
+            data = None
+            for attempt in range(1, max_attempts + 1):
+                data = scraper.scrap_game_data(href)
+                if data:
+                    break
+                else:
+                    print(f"Attempt {attempt}/{max_attempts} failed. Retrying...")
+                    time.sleep(random.uniform(5, 10))
             if data:
                 df_results = pd.concat([df_results, pd.DataFrame([data])], ignore_index=True)
-
-            break # DO NOT REMOVE OR COMMENT!!! JUST TO LOAD ONLY ONE PAGE FOR TESTING
-
-        return df_results
-
-    def save_to_csv(self, data, filename):
-        df = pd.DataFrame(data)
-        df.to_csv(filename, index=False)
+                df_results = df_results[df_results['title'] != "You have been temporarily rate limited on SteamDB"]
+                df_results.to_csv("dataset/steam_dataset.csv", index=False)
     
     def close(self):
+        """
+        Close the ChromeDriver and quit the browser.
+
+        This method is usually called in a finally block to ensure
+        that the browser is closed even if an exception is thrown.
+        """
+
         self.driver.quit()
