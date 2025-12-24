@@ -1,3 +1,32 @@
+# PRACTICA 2
+
+## Integrantes del grupo
+Jon Garrastatxu Fernandez<br>
+Víctor Ruiz-Clavijo Jimeno
+
+## Contenido del repositorio
+- `/source2/models.ipynb` — Código del scraper.  
+- `/source2/steam_dataset_training.csv` — CSV resultante del análisis para entrenamiento y test.   
+- `LICENSE`, `README.md`, `.gitignore`.
+
+## Cómo reproducir (ejemplo)
+```bash
+# clonar repo
+git clone https://github.com/JonGarrastatxu/PRACT1-TCVD.git
+cd PRACT1-TCVD
+
+# crear entorno (recomendado)
+python -m venv venv
+source venv/bin/activate   # Linux/macOS
+venv\Scripts\activate     # Windows
+
+pip install -r source/requirements.txt
+
+Asignar entorno venv a notebook models.ipynb desde Visual Studio Code.
+Ejecutar celdas del notebook.
+```
+
+
 # PRACT1-TCVD
 # Steamdb-scraper
 
