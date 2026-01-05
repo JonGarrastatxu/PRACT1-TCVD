@@ -11,3 +11,5 @@ numpy
 seaborn
 xgboost
 scikit-learn
+matplotlib
+PyQt6
